@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "sharp": "^0.33.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.1"
+  }
+}
