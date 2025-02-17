@@ -117,11 +117,11 @@ async function main() {
   ];
   console.log(process.argv.length);
   if (process.argv.length === 4) {
-    const dataSectors: Array<number> | undefined = await generateZones(
-      process.argv[3],
+    const dataSectors: Array<number> | undefined = await generateZones({
+      inputPath: process.argv[3],
       rowsCount,
       columnCount
-    );
+    });
     if (!dataSectors) {
       console.log("Error!");
       return;
@@ -138,16 +138,16 @@ async function teach(neuro: Neuro, dataSet: Array<any>) {
   const start = new Date().getTime();
   //Количество эпох
   let countOfAges = 0;
-  
+
   while (countErrors !== 0) {
     countErrors = 0;
     countOfAges++;
     for (let data of dataSet) {
-      const dataSectors: Array<number> | undefined = await generateZones(
-        data.inputPath,
+      const dataSectors: Array<number> | undefined = await generateZones({
+        inputPath: data.inputPath,
         rowsCount,
         columnCount
-      );
+      });
       if (!dataSectors) {
         console.log("Error!");
         return;
@@ -162,7 +162,7 @@ async function teach(neuro: Neuro, dataSet: Array<any>) {
   }
   const end = new Date().getTime();
   console.log("Количество эпох: ", countOfAges);
-  console.log("Время обучения: ", end - start , "ms");
+  console.log("Время обучения: ", end - start, "ms");
 }
 
 main();

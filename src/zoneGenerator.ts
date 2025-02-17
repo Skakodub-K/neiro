@@ -1,29 +1,41 @@
 import sharp, { Metadata } from "sharp";
 
-export async function generateZones(inputPath: string, rowsCount: number, columnCount: number): Promise<Array<number> | undefined> {
-    if (rowsCount <= 0 || columnCount <= 0) {
+interface GenerateZonesParams {
+    //Путь до картинки
+    inputPath: string,
+    //Кол-во строк у зоны
+    rowsCount: number,
+    //Кол-во стролбцов у зоны
+    columnCount: number,
+}
+
+export async function generateZones(params: GenerateZonesParams): Promise<Array<number> | undefined> {
+    if (params.rowsCount <= 0 || params.columnCount <= 0) {
         return;
     }
 
     try {
         //Получаем метаданные изображения
-        const metadata: Metadata = await sharp(inputPath).metadata();
+        const metadata: Metadata = await sharp(params.inputPath).metadata();
         //Ширина картинки
         const width: number | undefined  = metadata.width;
         //Высота картинки
         const height: number | undefined = metadata.height;
-        
+
         if(!width || !height) {
             return;
         }
 
+        //Считаем относительный порог в 5% от числа точек в одной зоне
+        const relativeThreshold: number = Math.floor(5 * width * height ) / (100 * params.rowsCount * params.columnCount );
+
         //Отступ по ширине
-        const zoneSizeX: number = Math.floor(width / columnCount);
+        const zoneSizeX: number = Math.floor(width / params.columnCount);
         //Отступ по высоте
-        const zoneSizeY: number = Math.floor(height / rowsCount);
+        const zoneSizeY: number = Math.floor(height / params.rowsCount);
 
         // Читаем изображение в буфер
-        const imageBuffer: Buffer = await sharp(inputPath).raw().toBuffer();
+        const imageBuffer: Buffer = await sharp(params.inputPath).raw().toBuffer();
         console.log("Buffer size: ", imageBuffer.length);
 
         //Значение зон
@@ -32,16 +44,16 @@ export async function generateZones(inputPath: string, rowsCount: number, column
         //Считаем отступа и добавляем в массив
         const calcXOffsetAndPush = async function(y: number, zoneSizeY: number) {
             let x = 0;
-            for (let j = 0; j < columnCount - 1; j++) {
-                zones.push(await checkZone(imageBuffer, x, y, zoneSizeX, zoneSizeY, width));
+            for (let j = 0; j < params.columnCount - 1; j++) {
+                zones.push(await checkZone(imageBuffer, x, y, zoneSizeX, zoneSizeY, width, relativeThreshold));
                 x += zoneSizeX;
             }
-            zones.push(await checkZone(imageBuffer, x, y, width - x, zoneSizeY, width));
+            zones.push(await checkZone(imageBuffer, x, y, width - x, zoneSizeY, width, relativeThreshold));
         }
 
         //Проходимся
         let y = 0;
-        for (let i = 0; i < rowsCount - 1; i++) {
+        for (let i = 0; i < params.rowsCount - 1; i++) {
             await calcXOffsetAndPush(y, zoneSizeY);
             y += zoneSizeY;
         }
@@ -56,7 +68,7 @@ export async function generateZones(inputPath: string, rowsCount: number, column
     }
 }
 
-async function checkZone(buffer: Buffer, startX: number, startY: number, sizeX: number, sizeY: number, imgWidth: number): Promise<number> {
+async function checkZone(buffer: Buffer, startX: number, startY: number, sizeX: number, sizeY: number, imgWidth: number, treshold: number): Promise<number> {
     let sumZone: number = 0;
     for (let y = startY; y < startY + sizeY; y++) {
         for (let x = startX; x < startX + sizeX; x++) {
@@ -69,5 +81,5 @@ async function checkZone(buffer: Buffer, startX: number, startY: number, sizeX: 
             sumZone += 1 - (buffer[offset] + buffer[offset + 1] + buffer[offset + 2]);
         }
     }
-    return sumZone < 100 ? 0 : 1;
+    return sumZone < treshold ? 0 : 1;
 }
