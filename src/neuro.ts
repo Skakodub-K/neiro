@@ -29,12 +29,16 @@ export class Neuro {
         }
     }
 
-    public getAnswer(data: Array<number>): boolean {
+    public getSumm(data: Array<number>): number {
         let summ = 0;
         for (let i = 0; i < this.numberOfSinopsis; ++i) {
             summ += this.weights[i] * data[i];
         }
-        return summ < this.delta;
+        return summ;
+    }
+
+    public getAnswer(data: Array<number>): boolean {
+        return this.getSumm(data) < this.delta;
     }
 
     public adjustWeights(data: Array<number>, upOrdown: boolean) {

@@ -174,11 +174,7 @@ async function teach(neuro: Neuro, dataSet: Array<any>) {
   console.log("Время обучения: ", end - start, "ms");
 }
 
-async function testWithNoise(
-  neuro: Neuro,
-  dataSet: Array<any>,
-  countNoise: number
-) {
+async function testWithNoise(neuro: Neuro, dataSet: Array<any>, countNoise: number) {
   for (const data of dataSet) {
     const dataSectors: Array<number> | undefined = await generateZones({
       inputPath: data.inputPath,
@@ -194,17 +190,17 @@ async function testWithNoise(
     for (let testIndex = 0; testIndex < 10; ++testIndex) {
       const dataSectorsWithNoise = [...dataSectors];
       for (let noiseIndex = 0; noiseIndex < countNoise; ++noiseIndex) {
-        const randomIndex: number = Math.floor(
-          Math.random() * rowsCount * columnCount
-        );
-        dataSectorsWithNoise[randomIndex] =
-          1 - dataSectorsWithNoise[randomIndex];
+        const randomIndex: number = Math.floor(Math.random() * rowsCount * columnCount);
+        dataSectorsWithNoise[randomIndex] = 1 - dataSectorsWithNoise[randomIndex];
       }
-      if (neuro.getAnswer(dataSectors) === data.correctAnswer) {
+      if (neuro.getAnswer(dataSectorsWithNoise) === data.correctAnswer) {
         countErrors++;
       }
     }
     console.log("Количество ошибок ", countErrors);
+    if (countErrors > 2) {
+      console.log("Сумма весов", neuro.getSumm(dataSectors));
+    }
   }
 }
 
