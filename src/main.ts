@@ -117,16 +117,22 @@ async function main() {
   ];
   console.log(process.argv.length);
   if (process.argv.length === 4) {
-    const dataSectors: Array<number> | undefined = await generateZones({
-      inputPath: process.argv[3],
-      rowsCount,
-      columnCount
-    });
-    if (!dataSectors) {
-      console.log("Error!");
-      return;
+    if (process.argv[3] === "test") {
+      testWithNoise(neuro, dataSet);
+    } else {
+      const dataSectors: Array<number> | undefined = await generateZones({
+        inputPath: process.argv[3],
+        rowsCount,
+        columnCount,
+      });
+      if (!dataSectors) {
+        console.log("Error!");
+        return;
+      }
+      console.log(
+        (await neuro.getAnswer(dataSectors)) ? "гласная" : "согласная"
+      );
     }
-    console.log((await neuro.getAnswer(dataSectors)) ? "гласная" : "согласная");
     return;
   } else {
     await teach(neuro, dataSet);
@@ -146,7 +152,7 @@ async function teach(neuro: Neuro, dataSet: Array<any>) {
       const dataSectors: Array<number> | undefined = await generateZones({
         inputPath: data.inputPath,
         rowsCount,
-        columnCount
+        columnCount,
       });
       if (!dataSectors) {
         console.log("Error!");
@@ -163,6 +169,31 @@ async function teach(neuro: Neuro, dataSet: Array<any>) {
   const end = new Date().getTime();
   console.log("Количество эпох: ", countOfAges);
   console.log("Время обучения: ", end - start, "ms");
+}
+
+async function testWithNoise(neuro: Neuro, dataSet: Array<any>) {
+  for (const data of dataSet) {
+    const dataSectors: Array<number> | undefined = await generateZones({
+      inputPath: data.inputPath,
+      rowsCount,
+      columnCount,
+    });
+    if (!dataSectors) {
+      console.log("Error!");
+      return;
+    }
+
+    let countErrors = 0;
+    for (let testIndex = 0; testIndex < 10; ++ testIndex) {
+      const dataSectorsWithNoise = [...dataSectors];
+      const randomIndex: number = Math.floor(Math.random() * rowsCount * columnCount);
+      dataSectorsWithNoise[randomIndex] = 1 - dataSectorsWithNoise[randomIndex];
+      if (neuro.getAnswer(dataSectors) === data.correctAnswer) {
+        countErrors++;
+      }
+    }
+    console.log("Количество ошибок ", countErrors);
+  }
 }
 
 main();

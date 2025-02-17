@@ -36,7 +36,6 @@ export async function generateZones(params: GenerateZonesParams): Promise<Array<
 
         // Читаем изображение в буфер
         const imageBuffer: Buffer = await sharp(params.inputPath).raw().toBuffer();
-        console.log("Buffer size: ", imageBuffer.length);
 
         //Значение зон
         const zones: Array<number> = [];
@@ -58,9 +57,6 @@ export async function generateZones(params: GenerateZonesParams): Promise<Array<
             y += zoneSizeY;
         }
         await calcXOffsetAndPush(y, height - y);
-
-        console.log(zones.length);
-        console.log(zones);
 
         return zones;
     } catch (error) {

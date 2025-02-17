@@ -37,7 +37,6 @@ export class Neuro {
         for (let i = 0; i < this.numberOfSinopsis; ++i) {
             summ += this.weights[i] * data[i];
         }
-        console.log("Summ of weights:", summ);
         return summ < this.delta;
     }
 
