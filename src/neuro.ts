@@ -1,7 +1,4 @@
 import { promises as fs } from 'fs';
-///подсчитать эпохи, время (мс), обучения и шумы 
-///по 10 тестов на каждую букву... 1,2,3 пикселя менять....
-//  чтобы точность распзнавания не падала ниже 80%
 export class Neuro {
     private weights: Array<number> = [];
     private delta: number = 0;

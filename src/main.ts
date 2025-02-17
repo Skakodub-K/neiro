@@ -118,7 +118,10 @@ async function main() {
   console.log(process.argv.length);
   if (process.argv.length === 4) {
     if (process.argv[3] === "test") {
-      testWithNoise(neuro, dataSet);
+      for (let i = 1; i < 4; ++i) {
+        console.log("Количество шумов -> ", i);
+        await testWithNoise(neuro, dataSet, i);
+      }
     } else {
       const dataSectors: Array<number> | undefined = await generateZones({
         inputPath: process.argv[3],
@@ -171,7 +174,11 @@ async function teach(neuro: Neuro, dataSet: Array<any>) {
   console.log("Время обучения: ", end - start, "ms");
 }
 
-async function testWithNoise(neuro: Neuro, dataSet: Array<any>) {
+async function testWithNoise(
+  neuro: Neuro,
+  dataSet: Array<any>,
+  countNoise: number
+) {
   for (const data of dataSet) {
     const dataSectors: Array<number> | undefined = await generateZones({
       inputPath: data.inputPath,
@@ -184,10 +191,15 @@ async function testWithNoise(neuro: Neuro, dataSet: Array<any>) {
     }
 
     let countErrors = 0;
-    for (let testIndex = 0; testIndex < 10; ++ testIndex) {
+    for (let testIndex = 0; testIndex < 10; ++testIndex) {
       const dataSectorsWithNoise = [...dataSectors];
-      const randomIndex: number = Math.floor(Math.random() * rowsCount * columnCount);
-      dataSectorsWithNoise[randomIndex] = 1 - dataSectorsWithNoise[randomIndex];
+      for (let noiseIndex = 0; noiseIndex < countNoise; ++noiseIndex) {
+        const randomIndex: number = Math.floor(
+          Math.random() * rowsCount * columnCount
+        );
+        dataSectorsWithNoise[randomIndex] =
+          1 - dataSectorsWithNoise[randomIndex];
+      }
       if (neuro.getAnswer(dataSectors) === data.correctAnswer) {
         countErrors++;
       }
