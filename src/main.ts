@@ -1,7 +1,10 @@
 import path from "path";
 import { Neuro } from "./neuro";
 import { generateZones } from "./zoneGenerator";
-
+interface dSType {
+  inputPath: string;
+  correctAnswer: boolean;
+}
 const rowsCount = 10;
 const columnCount = 6;
 
@@ -9,7 +12,7 @@ async function main() {
   //Нейрон
   const neuro = new Neuro(rowsCount * columnCount, 0);
 
-  const dataSet = [
+  const dataSet: Array<dSType> = [
     {
       inputPath: path.join(__dirname, "../alphabet/A.png"),
       correctAnswer: false,
@@ -141,30 +144,46 @@ async function main() {
     await teach(neuro, dataSet);
   }
 }
+async function getZones(data: dSType, isWithNoise: boolean) {
+  const dataSectors: Array<number> | undefined = await generateZones({
+    inputPath: data.inputPath,
+    rowsCount,
+    columnCount,
+  });
 
-async function teach(neuro: Neuro, dataSet: Array<any>) {
+  if (isWithNoise && dataSectors) {
+    for (let noiseIndex = 0; noiseIndex < 1; ++noiseIndex) {
+      const randomIndex: number = Math.floor(
+        Math.random() * rowsCount * columnCount
+      );
+      dataSectors[randomIndex] = 1 - dataSectors[randomIndex];
+    }
+  }
+
+  return dataSectors;
+}
+async function teach(neuro: Neuro, dataSet: Array<dSType>) {
   let countErrors: number = -1;
   const start = new Date().getTime();
   //Количество эпох
   let countOfAges = 0;
-
+  let newDataSet = [...dataSet, ...dataSet]
   while (countErrors !== 0) {
     countErrors = 0;
     countOfAges++;
-    for (let data of dataSet) {
-      const dataSectors: Array<number> | undefined = await generateZones({
-        inputPath: data.inputPath,
-        rowsCount,
-        columnCount,
-      });
+    for (let i = 0; i < newDataSet.length; ++i) {
+      const dataSectors: Array<number> | undefined = await getZones(
+        newDataSet[i],
+        i >= (newDataSet.length / 2)
+      );
       if (!dataSectors) {
         console.log("Error!");
         return;
       }
 
-      while (neuro.getAnswer(dataSectors) === data.correctAnswer) {
+      while (neuro.getAnswer(dataSectors) === newDataSet[i].correctAnswer) {
         countErrors++;
-        neuro.adjustWeights(dataSectors, data.correctAnswer);
+        neuro.adjustWeights(dataSectors, newDataSet[i].correctAnswer);
       }
       console.log("OK");
     }
@@ -174,7 +193,11 @@ async function teach(neuro: Neuro, dataSet: Array<any>) {
   console.log("Время обучения: ", end - start, "ms");
 }
 
-async function testWithNoise(neuro: Neuro, dataSet: Array<any>, countNoise: number) {
+async function testWithNoise(
+  neuro: Neuro,
+  dataSet: Array<dSType>,
+  countNoise: number
+) {
   for (const data of dataSet) {
     const dataSectors: Array<number> | undefined = await generateZones({
       inputPath: data.inputPath,
@@ -190,8 +213,11 @@ async function testWithNoise(neuro: Neuro, dataSet: Array<any>, countNoise: numb
     for (let testIndex = 0; testIndex < 10; ++testIndex) {
       const dataSectorsWithNoise = [...dataSectors];
       for (let noiseIndex = 0; noiseIndex < countNoise; ++noiseIndex) {
-        const randomIndex: number = Math.floor(Math.random() * rowsCount * columnCount);
-        dataSectorsWithNoise[randomIndex] = 1 - dataSectorsWithNoise[randomIndex];
+        const randomIndex: number = Math.floor(
+          Math.random() * rowsCount * columnCount
+        );
+        dataSectorsWithNoise[randomIndex] =
+          1 - dataSectorsWithNoise[randomIndex];
       }
       if (neuro.getAnswer(dataSectorsWithNoise) === data.correctAnswer) {
         countErrors++;
