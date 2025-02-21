@@ -1,129 +1,137 @@
 import path from "path";
-import { Neuro } from "./neuro";
+import { Neurons } from "./neuro";
 import { generateZones } from "./zoneGenerator";
-interface dSType {
+
+interface InitialType {
   inputPath: string;
-  correctAnswer: boolean;
+  correctAnswer: Array<number>;
 }
+
+interface DataSet {
+  data: Array<number>,
+  correctAnswer: Array<number>;
+}
+
 const rowsCount = 10;
 const columnCount = 6;
 
 async function main() {
-  //Нейрон
-  const neuro = new Neuro(rowsCount * columnCount, 0);
+  //Нейроны
+  const neurons = new Neurons(5, rowsCount * columnCount);
 
-  const dataSet: Array<dSType> = [
+  const initialSet: Array<InitialType> = [
     {
       inputPath: path.join(__dirname, "../alphabet/A.png"),
-      correctAnswer: false,
+      correctAnswer: [0,0,0,0,1],
     },
     {
       inputPath: path.join(__dirname, "../alphabet/B.png"),
-      correctAnswer: true,
+      correctAnswer: [0,0,0,1,0],
     },
     {
       inputPath: path.join(__dirname, "../alphabet/C.png"),
-      correctAnswer: true,
+      correctAnswer: [0,0,0,1,1],
     },
     {
       inputPath: path.join(__dirname, "../alphabet/D.png"),
-      correctAnswer: true,
+      correctAnswer: [0,0,1,0,0],
     },
     {
       inputPath: path.join(__dirname, "../alphabet/E.png"),
-      correctAnswer: false,
+      correctAnswer: [0,0,1,0,1],
     },
     {
       inputPath: path.join(__dirname, "../alphabet/F.png"),
-      correctAnswer: true,
+      correctAnswer: [0,0,1,1,0],
     },
     {
       inputPath: path.join(__dirname, "../alphabet/G.png"),
-      correctAnswer: true,
+      correctAnswer: [0,0,1,1,1],
     },
     {
       inputPath: path.join(__dirname, "../alphabet/H.png"),
-      correctAnswer: true,
+      correctAnswer: [0,1,0,0,0],
     },
     {
       inputPath: path.join(__dirname, "../alphabet/I.png"),
-      correctAnswer: false,
+      correctAnswer: [0,1,0,0,1],
     },
     {
       inputPath: path.join(__dirname, "../alphabet/J.png"),
-      correctAnswer: true,
+      correctAnswer: [0,1,0,1,0],
     },
     {
       inputPath: path.join(__dirname, "../alphabet/K.png"),
-      correctAnswer: true,
+      correctAnswer: [0,1,0,1,1],
     },
     {
       inputPath: path.join(__dirname, "../alphabet/L.png"),
-      correctAnswer: true,
+      correctAnswer: [0,1,1,0,0],
     },
     {
       inputPath: path.join(__dirname, "../alphabet/M.png"),
-      correctAnswer: true,
+      correctAnswer: [0,1,1,0,1],
     },
     {
       inputPath: path.join(__dirname, "../alphabet/N.png"),
-      correctAnswer: true,
+      correctAnswer: [0,1,1,1,0],
     },
     {
       inputPath: path.join(__dirname, "../alphabet/O.png"),
-      correctAnswer: false,
+      correctAnswer: [0,1,1,1,1],
     },
     {
       inputPath: path.join(__dirname, "../alphabet/P.png"),
-      correctAnswer: true,
+      correctAnswer: [1,0,0,0,0],
     },
     {
       inputPath: path.join(__dirname, "../alphabet/Q.png"),
-      correctAnswer: true,
+      correctAnswer: [1,0,0,0,1],
     },
     {
       inputPath: path.join(__dirname, "../alphabet/R.png"),
-      correctAnswer: true,
+      correctAnswer: [1,0,0,1,0],
     },
     {
       inputPath: path.join(__dirname, "../alphabet/S.png"),
-      correctAnswer: true,
+      correctAnswer: [1,0,0,1,1],
     },
     {
       inputPath: path.join(__dirname, "../alphabet/T.png"),
-      correctAnswer: true,
+      correctAnswer: [1,0,1,0,0],
     },
     {
       inputPath: path.join(__dirname, "../alphabet/U.png"),
-      correctAnswer: false,
+      correctAnswer: [1,0,1,0,1],
     },
     {
       inputPath: path.join(__dirname, "../alphabet/V.png"),
-      correctAnswer: true,
+      correctAnswer: [1,0,1,1,0],
     },
     {
       inputPath: path.join(__dirname, "../alphabet/W.png"),
-      correctAnswer: true,
+      correctAnswer: [1,0,1,1,1],
     },
     {
       inputPath: path.join(__dirname, "../alphabet/X.png"),
-      correctAnswer: true,
+      correctAnswer: [1,1,0,0,0],
     },
     {
       inputPath: path.join(__dirname, "../alphabet/Y.png"),
-      correctAnswer: false,
+      correctAnswer: [1,1,0,0,1],
     },
     {
       inputPath: path.join(__dirname, "../alphabet/Z.png"),
-      correctAnswer: true,
+      correctAnswer: [1,1,0,1,0],
     },
   ];
-  console.log(process.argv.length);
+  
   if (process.argv.length === 4) {
     if (process.argv[3] === "test") {
+      const dataSet: Array<DataSet> = await getAllZones(initialSet, false);
       for (let i = 1; i < 4; ++i) {
         console.log("Количество шумов -> ", i);
-        await testWithNoise(neuro, dataSet, i);
+        await testWithNoise(neurons, dataSet, i);
       }
     } else {
       const dataSectors: Array<number> | undefined = await generateZones({
@@ -135,55 +143,58 @@ async function main() {
         console.log("Error!");
         return;
       }
-      console.log(
-        (await neuro.getAnswer(dataSectors)) ? "гласная" : "согласная"
-      );
+      console.log((await neurons.getAnswer(dataSectors)) ? "гласная" : "согласная");
     }
     return;
   } else {
-    await teach(neuro, dataSet);
+    const dataSet: Array<DataSet> = await getAllZones(initialSet, false);
+    await teach(neurons, dataSet);
   }
 }
-async function getZones(data: dSType, isWithNoise: boolean) {
-  const dataSectors: Array<number> | undefined = await generateZones({
-    inputPath: data.inputPath,
-    rowsCount,
-    columnCount,
-  });
-
-  if (isWithNoise && dataSectors) {
+async function getAllZones(allInitialData: Array<InitialType>, isWithNoise: boolean): Promise<Array<DataSet>> {
+  let resultZones: Array<DataSet> = [];
+  
+  for (let i = 0; i < allInitialData.length; ++i){
+    const element = allInitialData[i];
+    const dataSectors: Array<number> | undefined = await generateZones({
+      inputPath: element.inputPath,
+      rowsCount,
+      columnCount
+    });
+    if(!dataSectors)
+      continue;
+    resultZones.push({
+      data: dataSectors,
+      correctAnswer: element.correctAnswer
+    })
+  }
+  
+  if (!isWithNoise)
+    return resultZones;
+    
+  resultZones = [...resultZones, ...resultZones];
+  for (let i = 0; i < rowsCount * columnCount; ++i) {
     for (let noiseIndex = 0; noiseIndex < 1; ++noiseIndex) {
-      const randomIndex: number = Math.floor(
-        Math.random() * rowsCount * columnCount
-      );
-      dataSectors[randomIndex] = 1 - dataSectors[randomIndex];
+      const randomIndex: number = Math.floor(Math.random() * rowsCount * columnCount);
+      resultZones[i].data[randomIndex] = 1 - resultZones[i].data[randomIndex];
     }
   }
-
-  return dataSectors;
+  
+  return resultZones;
 }
-async function teach(neuro: Neuro, dataSet: Array<dSType>) {
+async function teach(neurons: Neurons, dataSet: Array<DataSet>) {
   let countErrors: number = -1;
   const start = new Date().getTime();
   //Количество эпох
   let countOfAges = 0;
-  let newDataSet = [...dataSet, ...dataSet]
+
   while (countErrors !== 0) {
     countErrors = 0;
     countOfAges++;
-    for (let i = 0; i < newDataSet.length; ++i) {
-      const dataSectors: Array<number> | undefined = await getZones(
-        newDataSet[i],
-        i >= (newDataSet.length / 2)
-      );
-      if (!dataSectors) {
-        console.log("Error!");
-        return;
-      }
+    for (let i = 0; i < dataSet.length; ++i) {
 
-      while (neuro.getAnswer(dataSectors) === newDataSet[i].correctAnswer) {
+      while (!neurons.adjustWeights(dataSet[i].data, dataSet[i].correctAnswer)) {
         countErrors++;
-        neuro.adjustWeights(dataSectors, newDataSet[i].correctAnswer);
       }
       console.log("OK");
     }
@@ -193,41 +204,26 @@ async function teach(neuro: Neuro, dataSet: Array<dSType>) {
   console.log("Время обучения: ", end - start, "ms");
 }
 
-async function testWithNoise(
-  neuro: Neuro,
-  dataSet: Array<dSType>,
-  countNoise: number
-) {
-  for (const data of dataSet) {
-    const dataSectors: Array<number> | undefined = await generateZones({
-      inputPath: data.inputPath,
-      rowsCount,
-      columnCount,
-    });
-    if (!dataSectors) {
-      console.log("Error!");
-      return;
-    }
-
+async function testWithNoise(neurons: Neurons, dataSet: Array<DataSet>, countNoise: number) {
+  for (const inputData of dataSet) {
+    // Кол-во ошибок
     let countErrors = 0;
     for (let testIndex = 0; testIndex < 10; ++testIndex) {
-      const dataSectorsWithNoise = [...dataSectors];
+      const dataSectorsWithNoise: Array<number> = [...inputData.data];
       for (let noiseIndex = 0; noiseIndex < countNoise; ++noiseIndex) {
-        const randomIndex: number = Math.floor(
-          Math.random() * rowsCount * columnCount
-        );
-        dataSectorsWithNoise[randomIndex] =
-          1 - dataSectorsWithNoise[randomIndex];
+        const randomIndex: number = Math.floor(Math.random() * rowsCount * columnCount);
+        dataSectorsWithNoise[randomIndex] = 1 - dataSectorsWithNoise[randomIndex];
       }
-      if (neuro.getAnswer(dataSectorsWithNoise) === data.correctAnswer) {
+      for (let i = 0; i < inputData.correctAnswer.length; ++i) {
+        if( neurons.getAnswer(dataSectorsWithNoise)[i] === inputData.correctAnswer[i]) {
+          continue;
+        }
         countErrors++;
+        break;
       }
-    }
     console.log("Количество ошибок ", countErrors);
-    if (countErrors > 2) {
-      console.log("Сумма весов", neuro.getSumm(dataSectors));
-    }
   }
+}
 }
 
 main();
