@@ -127,9 +127,9 @@ async function main() {
   ];
   
   if (process.argv.length === 4) {
-    const dataSet: Array<DataSet> = await getAllZones(initialSet, false);
+    const dataSet: Array<DataSet> = await getDataSet(initialSet, false);
     if (process.argv[3] === "test") {
-      for (let i = 1; i < 4; ++i) {
+      for (let i = 0; i < 4; ++i) {
         console.log("Количество шумов -> ", i);
         await testWithNoise(neurons, dataSet, i);
       }
@@ -142,11 +142,12 @@ async function main() {
     }
     return;
   } else {
-    const dataSet: Array<DataSet> = await getAllZones(initialSet, false);
+    let dataSet: Array<DataSet> = await getDataSet(initialSet, true);
     await teach(neurons, dataSet);
   }
 }
-async function getAllZones(allInitialData: Array<InitialType>, isWithNoise: boolean): Promise<Array<DataSet>> {
+
+async function getDataSet(allInitialData: Array<InitialType>, isWithNoise: boolean): Promise<Array<DataSet>> {
   let resultZones: Array<DataSet> = [];
   
   for (let i = 0; i < allInitialData.length; ++i){
@@ -166,19 +167,24 @@ async function getAllZones(allInitialData: Array<InitialType>, isWithNoise: bool
   
   if (!isWithNoise)
     return resultZones;
-    
-  resultZones = [...resultZones, ...resultZones];
-  for (let i = 0; i < rowsCount * columnCount; ++i) {
+  
+  const dataSetWithNoise = resultZones.map((element: DataSet) => {
+    const newData: DataSet = {...element};
+    newData.data = [...newData.data];
+    return newData;
+  });
+  dataSetWithNoise.forEach((element: DataSet) => {
     for (let noiseIndex = 0; noiseIndex < 1; ++noiseIndex) {
       const randomIndex: number = Math.floor(Math.random() * rowsCount * columnCount);
-      resultZones[i].data[randomIndex] = 1 - resultZones[i].data[randomIndex];
+      element.data[randomIndex] = 1 - element.data[randomIndex];
     }
-  }
+  });
   
-  return resultZones;
+  return resultZones = [...resultZones, ...dataSetWithNoise];
 }
+
+// Обучение нейронной сети
 async function teach(neurons: Neurons, dataSet: Array<DataSet>) {
-  let countErrors: number = -1;
   const start = new Date().getTime();
   //Количество эпох
   let countOfAges = 0;
@@ -199,6 +205,7 @@ async function teach(neurons: Neurons, dataSet: Array<DataSet>) {
   console.log("Время обучения: ", end - start, "ms");
 }
 
+// Проверка нейронной сети
 async function testWithNoise(neurons: Neurons, dataSet: Array<DataSet>, countNoise: number) {
   for (const inputData of dataSet) {
     // Кол-во ошибок
@@ -216,9 +223,9 @@ async function testWithNoise(neurons: Neurons, dataSet: Array<DataSet>, countNoi
         countErrors++;
         break;
       }
+    }
     console.log("Количество ошибок ", countErrors);
   }
-}
 }
 
 main();

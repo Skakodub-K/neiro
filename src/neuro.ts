@@ -18,11 +18,16 @@ class Neuro {
         return summ;
     }
 
+    // Возвращает 0, если summ < delta и 1, если summ >= delta
     public getAnswer(data: Array<number>): number {
-        return Number(this.getSumm(data) < this.delta);
+        const summ: number = this.getSumm(data);
+        if (summ < this.delta) {
+            return 0;
+        }
+        return 1;
     }
 
-    public adjustWeights(data: Array<number>, delta: number, indexNeuron: number) {
+    public adjustWeights(data: Array<number>, delta: number) {
         if (delta === 0) {
             return;
         }
@@ -63,11 +68,12 @@ export class Neurons {
     public adjustWeights(data: Array<number>, correctAnswer: Array<number>): boolean {
         let haveDiff = false;
         for (let i = 0; i < this.neurons.length; ++i) {
-            const neuroAnswer: number = Number(this.neurons[i].getAnswer(data));
+            // Ответ нейрона
+            const neuroAnswer: number = this.neurons[i].getAnswer(data);
             const diff: number = correctAnswer[i] - neuroAnswer;
             if (diff !== 0)
                 haveDiff = true;
-            this.neurons[i].adjustWeights(data, diff, i);
+            this.neurons[i].adjustWeights(data, diff);
         }
         return haveDiff;
     }
