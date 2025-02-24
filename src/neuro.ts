@@ -55,13 +55,14 @@ export class Neurons {
 
     public getAnswer(data: Array<number>): Array<number> {
         const result: Array<number> = [];
-        this.neurons.forEach(neuro => result.push(neuro.getAnswer(data)));
+        this.neurons.forEach((neuro: Neuro) => result.push(neuro.getAnswer(data)));
         return result;
     }
 
+
     public adjustWeights(data: Array<number>, correctAnswer: Array<number>): boolean {
         let haveDiff = false;
-        for (let i = 0; i < data.length; ++i) {
+        for (let i = 0; i < this.neurons.length; ++i) {
             const neuroAnswer: number = Number(this.neurons[i].getAnswer(data));
             const diff: number = correctAnswer[i] - neuroAnswer;
             if (diff !== 0)
@@ -72,15 +73,12 @@ export class Neurons {
     }
 
     public async saveWeights() {
-        // Объект для хранения весов всех нейронов
-        const allWeights: any = {};
+        const allWeights: Array<Array<number>> = [];
 
         for (let i = 0; i < this.neurons.length; i++) {
-            const neuron = this.neurons[i];
-            // Возвращаем массив весов
-            const weights = neuron.getWeights();
-            // Сохраняем веса под уникальным ключом
-            allWeights[`${i}`] = weights;
+            const neuron: Neuro = this.neurons[i];
+            const weights: Array<number> = neuron.getWeights();
+            allWeights[i] = weights;
         }
         try {
             await fs.writeFile("weights.json", JSON.stringify(allWeights));
@@ -91,17 +89,35 @@ export class Neurons {
     }
 
     private async getWeigts() {
-        let allWeights: any = {};
+        let allWeights: any = [];
         try {
             const data = await fs.readFile("weights.json", "utf8");
-            allWeights = JSON.parse(data);
+            if (data) {
+                allWeights = JSON.parse(data);
+            } else {
+                // Если файл пуст, генерируем новые веса
+                allWeights = this.generateNewWeights();
+            }
         } catch (error) {
-            throw error;
+            // Если файл не существует, генерируем новые веса
+            allWeights = this.generateNewWeights();
         }
-        
+
         this.neurons.forEach((neuro, index) => {
-            const weights: Array<number> = allWeights[`${index}`];
+            const weights: Array<number> = allWeights[index];
             neuro.setWeights(weights);
         });
+    }
+    private generateNewWeights(): any {
+        const allWeights: any = [];
+        this.neurons.forEach((neuro, index) => {
+            const weights: Array<number> = [];
+            const numberOfSinopsis = neuro.getWeights().length; // Получаем количество синапсов
+            for (let i = 0; i < numberOfSinopsis; i++) {
+                weights.push(Math.random()); // Генерация весов в диапазоне от 0 до 1
+            }
+            allWeights[index] = weights; // Сохраняем веса для текущего нейрона
+        });
+        return allWeights;
     }
 }

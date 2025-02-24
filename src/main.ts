@@ -127,23 +127,18 @@ async function main() {
   ];
   
   if (process.argv.length === 4) {
+    const dataSet: Array<DataSet> = await getAllZones(initialSet, false);
     if (process.argv[3] === "test") {
-      const dataSet: Array<DataSet> = await getAllZones(initialSet, false);
       for (let i = 1; i < 4; ++i) {
         console.log("Количество шумов -> ", i);
         await testWithNoise(neurons, dataSet, i);
       }
     } else {
-      const dataSectors: Array<number> | undefined = await generateZones({
-        inputPath: process.argv[3],
-        rowsCount,
-        columnCount,
-      });
-      if (!dataSectors) {
-        console.log("Error!");
-        return;
+      const index: number = Number(process.argv[3]);
+      if (index < 0 || index >= 26) {
+        console.log("Incorrect input.");
       }
-      console.log((await neurons.getAnswer(dataSectors)) ? "гласная" : "согласная");
+      console.log("Answer: ", await neurons.getAnswer(dataSet[index].data));
     }
     return;
   } else {
@@ -187,18 +182,18 @@ async function teach(neurons: Neurons, dataSet: Array<DataSet>) {
   const start = new Date().getTime();
   //Количество эпох
   let countOfAges = 0;
+  let haveError = true;
 
-  while (countErrors !== 0) {
-    countErrors = 0;
+  while (haveError) {
+    haveError = false;
     countOfAges++;
     for (let i = 0; i < dataSet.length; ++i) {
-
-      while (!neurons.adjustWeights(dataSet[i].data, dataSet[i].correctAnswer)) {
-        countErrors++;
-      }
-      console.log("OK");
+      if(neurons.adjustWeights(dataSet[i].data, dataSet[i].correctAnswer))
+        haveError = true;
     }
   }
+  console.log("OK");
+  await neurons.saveWeights();
   const end = new Date().getTime();
   console.log("Количество эпох: ", countOfAges);
   console.log("Время обучения: ", end - start, "ms");
