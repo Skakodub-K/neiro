@@ -1,5 +1,14 @@
 import { promises as fs } from 'fs';
 
+// Сигмоида
+function sigmoid(x: number): number {
+    return 1 / (1 + Math.exp(-x));
+}
+
+function binaryThreshold(value: number) {
+    return value >= 0.5 ? 1 : 0;
+}
+
 class Neuro {
     private weights: Array<number> = [];
     private delta: number = 0;
@@ -7,7 +16,7 @@ class Neuro {
 
     constructor(numberOfSinopsis: number) {
         this.numberOfSinopsis = numberOfSinopsis;
-        this.delta = 0;
+        this.delta = 5;
     }
 
     public getSumm(data: Array<number>): number {
@@ -18,21 +27,15 @@ class Neuro {
         return summ;
     }
 
-    // Возвращает 0, если summ < delta и 1, если summ >= delta
+    // Возвращает сигмоиду от суммы
     public getAnswer(data: Array<number>): number {
         const summ: number = this.getSumm(data);
-        if (summ < this.delta) {
-            return 0;
-        }
-        return 1;
+        return sigmoid(summ);
     }
 
     public adjustWeights(data: Array<number>, delta: number) {
-        if (delta === 0) {
-            return;
-        }
         for (let i = 0; i < this.numberOfSinopsis; ++i) {
-            this.weights[i] += delta * data[i];
+            this.weights[i] -= delta * data[i];
         }
     }
 
@@ -50,6 +53,7 @@ class Neuro {
 
 export class Neurons {
     private neurons: Array<Neuro> = [];
+    private eta: number = 0.1;
 
     constructor(countOfNeurons: number, numberOfSinopsis: number) {
         for (let i = 0; i < countOfNeurons; ++i) {
@@ -58,9 +62,10 @@ export class Neurons {
         this.getWeigts();
     }
 
+    //Возвращает дискретный ответ 0 или 1
     public getAnswer(data: Array<number>): Array<number> {
         const result: Array<number> = [];
-        this.neurons.forEach((neuro: Neuro) => result.push(neuro.getAnswer(data)));
+        this.neurons.forEach((neuro: Neuro) => result.push(binaryThreshold(neuro.getAnswer(data))));
         return result;
     }
 
@@ -68,12 +73,19 @@ export class Neurons {
     public adjustWeights(data: Array<number>, correctAnswer: Array<number>): boolean {
         let haveDiff = false;
         for (let i = 0; i < this.neurons.length; ++i) {
-            // Ответ нейрона
+            // Результат нейрона = y'
             const neuroAnswer: number = this.neurons[i].getAnswer(data);
+            // y - y'
             const diff: number = correctAnswer[i] - neuroAnswer;
-            if (diff !== 0)
+            const diffSquare: number = diff * diff;
+            // Боремся с градиентным затуханием
+            if (diffSquare > 0.9 && diffSquare < 1) {
                 haveDiff = true;
-            this.neurons[i].adjustWeights(data, diff);
+                this.neurons[i].adjustWeights(data, -this.eta * diff);
+            } else if (diffSquare > 0.1){
+                haveDiff = true;
+                this.neurons[i].adjustWeights(data, -this.eta * diff * neuroAnswer * (1 - neuroAnswer));
+            }
         }
         return haveDiff;
     }
