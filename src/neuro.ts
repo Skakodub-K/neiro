@@ -51,41 +51,94 @@ class Neuro {
     }
 }
 
-export class Neurons {
+class Layer {
+    // Нейроны слоя
     private neurons: Array<Neuro> = [];
-    private eta: number = 0.1;
-
+    private inputs: Array<number> = [];
+    private lastLayerAnswer: Array<number> = [];
+    private eta = 0.6;
+    
     constructor(countOfNeurons: number, numberOfSinopsis: number) {
         for (let i = 0; i < countOfNeurons; ++i) {
             this.neurons.push(new Neuro(numberOfSinopsis));
+        }
+    }
+
+    //Возвращает ответ слоя
+    public getAnswer(data: Array<number>): Array<number> {
+        this.inputs = data;
+        const result: Array<number> = [];
+        this.neurons.forEach((neuro: Neuro) => result.push(neuro.getAnswer(this.inputs)));
+        this.lastLayerAnswer = result;
+        return this.lastLayerAnswer;
+    }
+
+    public adjustWeights(diffLayer: Array<number>): Array<number> {
+    for (let i = 0; i < this.neurons.length; ++i) {
+        // Результат нейрона = y'
+        const neuroAnswer: number = this.lastLayerAnswer[i];
+        // (y - y')
+        const diff: number = diffLayer[i];
+        // (y - y')* (y - y')
+        const diffSquare: number = diff * diff;
+        // Боремся с градиентным затуханием
+        if (diffSquare > 0.9 && diffSquare < 1) {
+            this.neurons[i].adjustWeights(this.inputs, -this.eta * diff);
+        } else if (diffSquare > 0.1){
+            this.neurons[i].adjustWeights(this.inputs, -this.eta * diff * neuroAnswer * (1 - neuroAnswer));
+        }
+    }
+    const resultDiff: Array<number> = [];
+    this.neurons.forEach((neuro: Neuro) => resultDiff.push(neuro.getAnswer(this.inputs) - this.lastLayerAnswer[i]));
+    return resultDiff;
+}
+
+}
+
+interface NeuronsConfig {
+    // Количество слоев и нейроннов в них
+    layers: Array<number>,
+    // Количество синопсисов у первого слоя
+    countOfInputData: number,
+    // Параметр скорости "Эта"
+    eta: number
+}
+
+export class Neurons {
+    // Слои нейронной сети
+    private layers: Array<Layer> = [];
+    // Параметр скорости "Эта"
+    private eta: number = 0.1;
+
+    constructor(config: NeuronsConfig) {
+        // Добавляем первый слой
+        this.layers.push(new Layer(config.layers[0], config.countOfInputData));
+        // Добавляем остальные слои
+        for (let i = 1; i < config.layers.length; ++i) {
+            this.layers.push(new Layer(config.layers[i], config.layers[i - 1]));
         }
         this.getWeigts();
     }
 
     //Возвращает дискретный ответ 0 или 1
     public getAnswer(data: Array<number>): Array<number> {
-        const result: Array<number> = [];
-        this.neurons.forEach((neuro: Neuro) => result.push(binaryThreshold(neuro.getAnswer(data))));
-        return result;
+        this.layers.forEach((layer: Layer) => data = layer.getAnswer(data));
+        return data;
     }
-
 
     public adjustWeights(data: Array<number>, correctAnswer: Array<number>): boolean {
         let haveDiff = false;
-        for (let i = 0; i < this.neurons.length; ++i) {
-            // Результат нейрона = y'
-            const neuroAnswer: number = this.neurons[i].getAnswer(data);
-            // y - y'
-            const diff: number = correctAnswer[i] - neuroAnswer;
-            const diffSquare: number = diff * diff;
-            // Боремся с градиентным затуханием
-            if (diffSquare > 0.9 && diffSquare < 1) {
-                haveDiff = true;
-                this.neurons[i].adjustWeights(data, -this.eta * diff);
-            } else if (diffSquare > 0.1){
-                haveDiff = true;
-                this.neurons[i].adjustWeights(data, -this.eta * diff * neuroAnswer * (1 - neuroAnswer));
-            }
+        const neuronsAnswer: Array<number> = this.getAnswer(data);
+        let dif: Array<number> = neuronsAnswer.map((nAnswer: number, index: number) => {
+            return correctAnswer[index] - nAnswer;
+        })
+        const error = dif.reduce((previousValue: number, currentValue: number) => {
+            return previousValue + currentValue * currentValue;
+        }, 0);
+        if (error > 0.3)
+            haveDiff = true;
+        for (let i = this.layers.length -1 ; i >= 0; --i) {
+            dif = this.layers[i].adjustWeights(dif);
         }
         return haveDiff;
     }
