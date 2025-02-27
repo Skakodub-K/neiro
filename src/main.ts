@@ -1,7 +1,8 @@
 import path from "path";
 import { Neurons } from "./neuro";
 import { generateZones } from "./zoneGenerator";
-
+import initNeiro from "./neiroCFG"; 
+import initTest from "./initTest";
 interface InitialType {
   inputPath: string;
   correctAnswer: Array<number>;
@@ -12,12 +13,9 @@ interface DataSet {
   correctAnswer: Array<number>;
 }
 
-const rowsCount = 10;
-const columnCount = 6;
-
 async function main() {
   //Нейроны
-  const neurons = new Neurons(5, rowsCount * columnCount);
+  const neurons = new Neurons(initNeiro.countOfNeurons, initNeiro.rowsCount * initNeiro.columnCount);
 
   const initialSet: Array<InitialType> = [
     {
@@ -129,7 +127,7 @@ async function main() {
   if (process.argv.length === 4) {
     const dataSet: Array<DataSet> = await getDataSet(initialSet, false);
     if (process.argv[3] === "test") {
-      for (let i = 0; i < 4; ++i) {
+      for (let i = 0; i < initTest.countNoise.length; ++i) {
         console.log("Количество шумов -> ", i);
         await testWithNoise(neurons, dataSet, i);
       }
@@ -154,8 +152,9 @@ async function getDataSet(allInitialData: Array<InitialType>, isWithNoise: boole
     const element = allInitialData[i];
     const dataSectors: Array<number> | undefined = await generateZones({
       inputPath: element.inputPath,
-      rowsCount,
-      columnCount
+      rowsCount: initNeiro.rowsCount,
+      columnCount: initNeiro.columnCount
+    
     });
     if(!dataSectors)
       continue;
@@ -175,7 +174,7 @@ async function getDataSet(allInitialData: Array<InitialType>, isWithNoise: boole
   });
   dataSetWithNoise.forEach((element: DataSet) => {
     for (let noiseIndex = 0; noiseIndex < 1; ++noiseIndex) {
-      const randomIndex: number = Math.floor(Math.random() * rowsCount * columnCount);
+      const randomIndex: number = Math.floor(Math.random() *  initNeiro.rowsCount * initNeiro.columnCount);
       element.data[randomIndex] = 1 - element.data[randomIndex];
     }
   });
@@ -213,7 +212,7 @@ async function testWithNoise(neurons: Neurons, dataSet: Array<DataSet>, countNoi
     for (let testIndex = 0; testIndex < 10; ++testIndex) {
       const dataSectorsWithNoise: Array<number> = [...inputData.data];
       for (let noiseIndex = 0; noiseIndex < countNoise; ++noiseIndex) {
-        const randomIndex: number = Math.floor(Math.random() * rowsCount * columnCount);
+        const randomIndex: number = Math.floor(Math.random() *  initNeiro.rowsCount * initNeiro.columnCount);
         dataSectorsWithNoise[randomIndex] = 1 - dataSectorsWithNoise[randomIndex];
       }
       for (let i = 0; i < inputData.correctAnswer.length; ++i) {
