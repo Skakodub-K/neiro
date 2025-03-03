@@ -1,5 +1,5 @@
 import path from "path";
-import { Neurons } from "./neuro";
+import { Neurons, NeuronsConfig } from "./neuro";
 import { generateZones } from "./zoneGenerator";
 import initNeiro from "./neiroCFG"; 
 import initTest from "./initTest";
@@ -14,8 +14,14 @@ interface DataSet {
 }
 
 async function main() {
+  const neuroConfig: NeuronsConfig = {
+    layers: initNeiro.layers,
+    countOfInputData: initNeiro.columnCount * initNeiro.rowsCount,
+    eta: 0.1
+}
+  
   //Нейроны
-  const neurons = new Neurons(initNeiro.layers[initNeiro.layers.length - 1], initNeiro.rowsCount * initNeiro.columnCount);
+  const neurons = new Neurons(neuroConfig);
 
   const initialSet: Array<InitialType> = [
     {
@@ -127,7 +133,7 @@ async function main() {
   if (process.argv.length === 4) {
     const dataSet: Array<DataSet> = await getDataSet(initialSet, false);
     if (process.argv[3] === "test") {
-      for (let i = 0; i < 3; ++i) {
+      for (let i = 0; i <= 3; ++i) {
         console.log("Количество шумов -> ", i);
         await testWithNoise(neurons, dataSet, i);
       }
@@ -219,8 +225,10 @@ async function testWithNoise(neurons: Neurons, dataSet: Array<DataSet>, countNoi
         const randomIndex: number = Math.floor(Math.random() *  initNeiro.rowsCount * initNeiro.columnCount);
         dataSectorsWithNoise[randomIndex] = 1 - dataSectorsWithNoise[randomIndex];
       }
+      const neuroAnswers: Array<number> = neurons.getAnswer(dataSectorsWithNoise);
       for (let i = 0; i < inputData.correctAnswer.length; ++i) {
-        if( neurons.getAnswer(dataSectorsWithNoise)[i] === inputData.correctAnswer[i]) {
+        const roundedAnswer: number = neuroAnswers[i] >= 0.5 ? 1 : 0;
+        if(roundedAnswer === inputData.correctAnswer[i]) {
           continue;
         }
         countErrors++;
