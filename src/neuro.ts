@@ -35,7 +35,7 @@ class Neuro {
 
     public adjustWeights(data: Array<number>, delta: number) {
         for (let i = 0; i < this.numberOfSinopsis; ++i) {
-            this.weights[i] -= delta * data[i];
+            this.weights[i] += delta * data[i];
         }
     }
 
@@ -49,57 +49,164 @@ class Neuro {
         }
         this.weights = weights;
     }
+
+    public generateWeights() {
+        this.weights = [];
+        for (let i = 0; i < this.numberOfSinopsis; ++i) {
+            this.weights.push(1 - Math.random() * 2);
+        }
+    }
 }
 
-export class Neurons {
+class Layer {
+    // Нейроны слоя
     private neurons: Array<Neuro> = [];
-    private eta: number = 0.1;
-
+    private inputs: Array<number> = [];
+    private lastLayerAnswer: Array<number> = [];
+    private eta = 0.6;
+    
     constructor(countOfNeurons: number, numberOfSinopsis: number) {
         for (let i = 0; i < countOfNeurons; ++i) {
             this.neurons.push(new Neuro(numberOfSinopsis));
+        }
+    }
+
+    //Возвращает ответ слоя
+    public getAnswer(data: Array<number>): Array<number> {
+        this.inputs = data;
+        const result: Array<number> = [];
+        this.neurons.forEach((neuro: Neuro) => result.push(neuro.getAnswer(this.inputs)));
+        this.lastLayerAnswer = result;
+        return this.lastLayerAnswer;
+    }
+
+    public adjustWeights(diffLayer: Array<number>): Array<number> {
+        // Вектор дельт
+        const result: Array<number> = Array(this.inputs.length);
+        result.fill(0);
+        for (let i = 0; i < this.neurons.length; ++i) {
+            // Результат нейрона = y'
+            const neuroAnswer: number = this.lastLayerAnswer[i];
+            // (y - y')
+            const diff: number = diffLayer[i];
+            // (y - y')* (y - y')
+            const diffSquare: number = diff * diff;
+            // дельта i-тое
+            let delta: number = diff * neuroAnswer * (1 - neuroAnswer);
+            
+            // Боремся с градиентным затуханием
+            if (diffSquare > 0.9 && diffSquare <= 1) {
+                delta = diff;
+            }
+                
+            for (let j = 0; j < result.length; ++j) {
+                result[j] += delta * this.neurons[i].getWeights()[j];
+            }
+            this.neurons[i].adjustWeights(this.inputs, this.eta * delta);
+        }
+        
+        return result;
+    }
+
+    public adjustWeightsHidden(deltaWOfNextLayer: Array<number>) : void{
+        for (let i = 0; i < this.neurons.length; ++i) {
+            // Результат нейрона = y'
+            const neuroAnswer: number = this.lastLayerAnswer[i];
+            let delta: number = neuroAnswer * (1 - neuroAnswer) * deltaWOfNextLayer[i];
+            
+            this.neurons[i].adjustWeights(this.inputs, this.eta * delta);
+        }
+    }
+
+    // Устанавливаем веса нейронам в слое
+    public setWeights(layerweights: Array<Array<number>>) {
+        if (layerweights.length !== this.neurons.length) {
+            throw "Beda!";
+        }
+        this.neurons.forEach((neuron: Neuro, index: number) => {
+            neuron.setWeights(layerweights[index]);
+        });
+    }
+
+    // Получаем веса нейронам в слое
+    public getWeights(): Array<Array<number>> {
+        const result: Array<Array<number>> = [];
+        this.neurons.forEach((neuron: Neuro, index: number) => {
+            result.push(neuron.getWeights());
+        });
+        return result;
+    }
+
+    public generateWeights() {
+        this.neurons.forEach((neuron: Neuro) => {
+            neuron.generateWeights();
+        });
+    }
+}
+
+export interface NeuronsConfig {
+    // Количество слоев и нейроннов в них
+    layers: Array<number>,
+    // Количество синопсисов у первого слоя
+    countOfInputData: number,
+    // Параметр скорости "Эта"
+    eta: number
+}
+
+export class Neurons {
+    // Слои нейронной сети
+    private layers: Array<Layer> = [];
+    // Параметр скорости "Эта"
+    private eta: number = 0.1;
+
+    constructor(config: NeuronsConfig) {        
+        // Добавляем первый слой
+        this.layers.push(new Layer(config.layers[0], config.countOfInputData));
+        // Добавляем остальные слои
+        for (let i = 1; i < config.layers.length; ++i) {
+            this.layers.push(new Layer(config.layers[i], config.layers[i - 1]));
         }
         this.getWeigts();
     }
 
     //Возвращает дискретный ответ 0 или 1
     public getAnswer(data: Array<number>): Array<number> {
-        const result: Array<number> = [];
-        this.neurons.forEach((neuro: Neuro) => result.push(binaryThreshold(neuro.getAnswer(data))));
-        return result;
+        this.layers.forEach((layer: Layer) => data = layer.getAnswer(data));
+        return data;
     }
-
 
     public adjustWeights(data: Array<number>, correctAnswer: Array<number>): boolean {
         let haveDiff = false;
-        for (let i = 0; i < this.neurons.length; ++i) {
-            // Результат нейрона = y'
-            const neuroAnswer: number = this.neurons[i].getAnswer(data);
-            // y - y'
-            const diff: number = correctAnswer[i] - neuroAnswer;
-            const diffSquare: number = diff * diff;
-            // Боремся с градиентным затуханием
-            if (diffSquare > 0.9 && diffSquare < 1) {
-                haveDiff = true;
-                this.neurons[i].adjustWeights(data, -this.eta * diff);
-            } else if (diffSquare > 0.1){
-                haveDiff = true;
-                this.neurons[i].adjustWeights(data, -this.eta * diff * neuroAnswer * (1 - neuroAnswer));
+        const neuronsAnswer: Array<number> = this.getAnswer(data);
+        let dif: Array<number> = neuronsAnswer.map((nAnswer: number, index: number) => {
+            return correctAnswer[index] - nAnswer;
+        })
+        const error = dif.reduce((previousValue: number, currentValue: number) => {
+            return previousValue + currentValue * currentValue;
+        }, 0);
+        if (error > 0.3)
+            haveDiff = true;
+        for (let i = this.layers.length -1; i >= 0; --i) {
+            // Для выходного слоя
+            if (i == this.layers.length -1) {
+                dif = this.layers[i].adjustWeights(dif);
+            } else {
+                this.layers[i].adjustWeightsHidden(dif);
             }
+            
         }
         return haveDiff;
     }
 
     public async saveWeights() {
-        const allWeights: Array<Array<number>> = [];
+        const allWeights: Array<Array<Array<number>>> = [];
 
-        for (let i = 0; i < this.neurons.length; i++) {
-            const neuron: Neuro = this.neurons[i];
-            const weights: Array<number> = neuron.getWeights();
-            allWeights[i] = weights;
-        }
+        this.layers.forEach((layer: Layer) => {
+            const weights: Array<Array<number>> = layer.getWeights();
+            allWeights.push(weights);
+        });
         try {
-            await fs.writeFile("weights.json", JSON.stringify(allWeights));
+            await fs.writeFile("weights.json", JSON.stringify(allWeights, null, 2));
         } catch (error) {
             console.error("Error saving weights:", error);
         }
@@ -112,30 +219,23 @@ export class Neurons {
             const data = await fs.readFile("weights.json", "utf8");
             if (data) {
                 allWeights = JSON.parse(data);
+                this.layers.forEach((layer, index) => {
+                    const weights: Array<Array<number>> = allWeights[index];
+                    layer.setWeights(weights);
+                });
             } else {
                 // Если файл пуст, генерируем новые веса
-                allWeights = this.generateNewWeights();
+                this.generateNewWeights();
             }
         } catch (error) {
             // Если файл не существует, генерируем новые веса
-            allWeights = this.generateNewWeights();
+            this.generateNewWeights();
         }
-
-        this.neurons.forEach((neuro, index) => {
-            const weights: Array<number> = allWeights[index];
-            neuro.setWeights(weights);
-        });
     }
-    private generateNewWeights(): any {
-        const allWeights: any = [];
-        this.neurons.forEach((neuro, index) => {
-            const weights: Array<number> = [];
-            const numberOfSinopsis = neuro.getWeights().length; // Получаем количество синапсов
-            for (let i = 0; i < numberOfSinopsis; i++) {
-                weights.push(Math.random()); // Генерация весов в диапазоне от 0 до 1
-            }
-            allWeights[index] = weights; // Сохраняем веса для текущего нейрона
+    
+    private generateNewWeights(): void {
+        this.layers.forEach((layer: Layer) => {
+            layer.generateWeights()    
         });
-        return allWeights;
     }
 }

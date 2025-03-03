@@ -7,6 +7,6 @@
 const initNeiro:InitialNeiro = {
   rowsCount: 10, 
   columnCount: 5,
-  layers:[3,4,5] 
+  layers:[12, 5] 
 }
 export default  initNeiro;

@@ -1,5 +1,5 @@
 const initTest:{countNoise:number[]} = {
-    countNoise: [4] 
+    countNoise: [13, 7, 2] 
 }
 
 export default initTest;
