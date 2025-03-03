@@ -1,7 +1,8 @@
 import path from "path";
 import { Neurons } from "./neuro";
 import { generateZones } from "./zoneGenerator";
-
+import initNeiro from "./neiroCFG"; 
+import initTest from "./initTest";
 interface InitialType {
   inputPath: string;
   correctAnswer: Array<number>;
@@ -12,12 +13,9 @@ interface DataSet {
   correctAnswer: Array<number>;
 }
 
-const rowsCount = 10;
-const columnCount = 6;
-
 async function main() {
   //Нейроны
-  const neurons = new Neurons(5, rowsCount * columnCount);
+  const neurons = new Neurons(initNeiro.layers[initNeiro.layers.length - 1], initNeiro.rowsCount * initNeiro.columnCount);
 
   const initialSet: Array<InitialType> = [
     {
@@ -129,7 +127,7 @@ async function main() {
   if (process.argv.length === 4) {
     const dataSet: Array<DataSet> = await getDataSet(initialSet, false);
     if (process.argv[3] === "test") {
-      for (let i = 0; i < 4; ++i) {
+      for (let i = 0; i < 3; ++i) {
         console.log("Количество шумов -> ", i);
         await testWithNoise(neurons, dataSet, i);
       }
@@ -148,14 +146,15 @@ async function main() {
 }
 
 async function getDataSet(allInitialData: Array<InitialType>, isWithNoise: boolean): Promise<Array<DataSet>> {
-  let resultZones: Array<DataSet> = [];
+  const resultZones: Array<DataSet> = [];
   
   for (let i = 0; i < allInitialData.length; ++i){
     const element = allInitialData[i];
     const dataSectors: Array<number> | undefined = await generateZones({
       inputPath: element.inputPath,
-      rowsCount,
-      columnCount
+      rowsCount: initNeiro.rowsCount,
+      columnCount: initNeiro.columnCount
+    
     });
     if(!dataSectors)
       continue;
@@ -168,19 +167,23 @@ async function getDataSet(allInitialData: Array<InitialType>, isWithNoise: boole
   if (!isWithNoise)
     return resultZones;
   
-  const dataSetWithNoise = resultZones.map((element: DataSet) => {
-    const newData: DataSet = {...element};
-    newData.data = [...newData.data];
-    return newData;
-  });
-  dataSetWithNoise.forEach((element: DataSet) => {
-    for (let noiseIndex = 0; noiseIndex < 1; ++noiseIndex) {
-      const randomIndex: number = Math.floor(Math.random() * rowsCount * columnCount);
-      element.data[randomIndex] = 1 - element.data[randomIndex];
-    }
-  });
+  let resultZonesWithNoise : Array<DataSet> = [...resultZones];
   
-  return resultZones = [...resultZones, ...dataSetWithNoise];
+  for (let i = 0; i < initTest.countNoise.length; ++i) {
+    for (let j = 0; j < initTest.countNoise[i]; ++j) {
+      const dataSetWithNoise: Array<DataSet> = resultZones.map((element: DataSet) => {
+        const newData: DataSet = {...element};
+        newData.data = [...newData.data];
+        for (let noiseIndex = 0; noiseIndex < i+1; ++noiseIndex) {
+          const randomIndex: number = Math.floor(Math.random() *  initNeiro.rowsCount * initNeiro.columnCount);
+          newData.data[randomIndex] = 1 - element.data[randomIndex];
+        }
+        return newData;
+      });
+      resultZonesWithNoise = [...resultZonesWithNoise, ...dataSetWithNoise];
+    }
+  }
+  return resultZonesWithNoise;
 }
 
 // Обучение нейронной сети
@@ -190,7 +193,7 @@ async function teach(neurons: Neurons, dataSet: Array<DataSet>) {
   let countOfAges = 0;
   let haveError = true;
 
-  while (haveError) {
+  while (haveError && countOfAges < 5000) {
     haveError = false;
     countOfAges++;
     for (let i = 0; i < dataSet.length; ++i) {
@@ -213,7 +216,7 @@ async function testWithNoise(neurons: Neurons, dataSet: Array<DataSet>, countNoi
     for (let testIndex = 0; testIndex < 10; ++testIndex) {
       const dataSectorsWithNoise: Array<number> = [...inputData.data];
       for (let noiseIndex = 0; noiseIndex < countNoise; ++noiseIndex) {
-        const randomIndex: number = Math.floor(Math.random() * rowsCount * columnCount);
+        const randomIndex: number = Math.floor(Math.random() *  initNeiro.rowsCount * initNeiro.columnCount);
         dataSectorsWithNoise[randomIndex] = 1 - dataSectorsWithNoise[randomIndex];
       }
       for (let i = 0; i < inputData.correctAnswer.length; ++i) {
