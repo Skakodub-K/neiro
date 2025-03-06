@@ -1,5 +1,8 @@
 import { promises as fs } from 'fs';
 
+// Скорость эта
+let eta: number = 0.1;
+
 // Сигмоида
 function sigmoid(x: number): number {
     return 1 / (1 + Math.exp(-x));
@@ -63,7 +66,6 @@ class Layer {
     private neurons: Array<Neuro> = [];
     private inputs: Array<number> = [];
     private lastLayerAnswer: Array<number> = [];
-    private eta = 0.6;
     
     constructor(countOfNeurons: number, numberOfSinopsis: number) {
         for (let i = 0; i < countOfNeurons; ++i) {
@@ -102,20 +104,26 @@ class Layer {
             for (let j = 0; j < result.length; ++j) {
                 result[j] += delta * this.neurons[i].getWeights()[j];
             }
-            this.neurons[i].adjustWeights(this.inputs, this.eta * delta);
+            this.neurons[i].adjustWeights(this.inputs, eta * delta);
         }
         
         return result;
     }
 
-    public adjustWeightsHidden(deltaWOfNextLayer: Array<number>) : void{
+    public adjustWeightsHidden(deltaWOfNextLayer: Array<number>) : Array<number>{
+        // Вектор дельт
+        const result: Array<number> = Array(this.inputs.length);
+        result.fill(0);
         for (let i = 0; i < this.neurons.length; ++i) {
             // Результат нейрона = y'
             const neuroAnswer: number = this.lastLayerAnswer[i];
-            let delta: number = neuroAnswer * (1 - neuroAnswer) * deltaWOfNextLayer[i];
-            
-            this.neurons[i].adjustWeights(this.inputs, this.eta * delta);
+            const delta: number = neuroAnswer * (1 - neuroAnswer) * deltaWOfNextLayer[i];
+            for (let j = 0; j < result.length; ++j) {
+                result[j] += delta * this.neurons[i].getWeights()[j];
+            }
+            this.neurons[i].adjustWeights(this.inputs, eta * delta);
         }
+        return result;
     }
 
     // Устанавливаем веса нейронам в слое
@@ -156,8 +164,6 @@ export interface NeuronsConfig {
 export class Neurons {
     // Слои нейронной сети
     private layers: Array<Layer> = [];
-    // Параметр скорости "Эта"
-    private eta: number = 0.1;
 
     constructor(config: NeuronsConfig) {        
         // Добавляем первый слой
@@ -166,6 +172,7 @@ export class Neurons {
         for (let i = 1; i < config.layers.length; ++i) {
             this.layers.push(new Layer(config.layers[i], config.layers[i - 1]));
         }
+        eta = config.eta;
         this.getWeigts();
     }
 
@@ -191,7 +198,7 @@ export class Neurons {
             if (i == this.layers.length -1) {
                 dif = this.layers[i].adjustWeights(dif);
             } else {
-                this.layers[i].adjustWeightsHidden(dif);
+                dif = this.layers[i].adjustWeightsHidden(dif);
             }
             
         }

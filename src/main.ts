@@ -17,7 +17,7 @@ async function main() {
   const neuroConfig: NeuronsConfig = {
     layers: initNeiro.layers,
     countOfInputData: initNeiro.columnCount * initNeiro.rowsCount,
-    eta: 0.1
+    eta: initNeiro.eta
 }
   
   //Нейроны
